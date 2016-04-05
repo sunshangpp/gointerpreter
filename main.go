@@ -14,15 +14,10 @@ func main() {
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		// lexecal analysis: tokenize input
-		lexer := NewLexer(line)
-		tokens := lexer.Tokenize()
-		fmt.Println(tokens)
+		interpreter := NewInterpreter(line)
+		value := interpreter.interpret()
 
-		// parse tokens
-		parser := NewParser(tokens)
-		result := parser.Expr()
-		fmt.Println(result)
+		fmt.Println(value)
 
 		fmt.Print("calc > ")
 	}

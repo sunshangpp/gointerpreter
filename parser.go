@@ -27,61 +27,69 @@ func (parser *Parser) eat(tokenTypes ...string) {
 	panic("sytax error!")
 }
 
-func (parser *Parser) facter() int {
-	var value int
+func (parser *Parser) facter() AST {
+	/*
+		INTEGER | LPAREN expr RPAREN | (PLUS | MINUS) factor
+	*/
+	var node AST
 	token := parser.currentToken()
 	if token.Type == LPAREN {
 		parser.eat(LPAREN)
-		value = parser.Expr()
+		node = parser.Expr()
 		parser.eat(RPAREN)
-	} else {
-		value = token.Value.(int)
+	} else if token.Type == INTEGER {
+		node = NewNum(token)
 		parser.eat(INTEGER)
+	} else if token.Type == PLUS {
+		parser.eat(PLUS)
+		node = UnaryOp{parser.facter(), token}
+	} else if token.Type == MINUS {
+		parser.eat(MINUS)
+		node = UnaryOp{parser.facter(), token}
+	} else {
+		panic("invalid syntax")
 	}
-	return value
+	return node
 }
 
-func (parser *Parser) term() int {
-	term := parser.facter()
+func (parser *Parser) term() AST {
+	/*
+		factor ((MUL | DIV) factor)*
+	*/
+	node := parser.facter()
 	for {
-		operand := parser.currentToken()
-		if operand.Type == MUL {
-			parser.eat(MUL)
-			term *= parser.facter()
-		} else if operand.Type == DIV {
-			parser.eat(DIV)
-			term /= parser.facter()
+		op := parser.currentToken()
+		if op.Type == MUL || op.Type == DIV {
+			parser.eat(MUL, DIV)
+			node = NewBinOp(node, parser.facter(), op)
 		} else {
-			return term
+			return node
 		}
 	}
 }
 
-/*
-Arithmetic expression parser / interpreter.
-expr   : term ((PLUS | MINUS) term)*
-term   : factor ((MUL | DIV) factor)*
-factor : INTEGER | LPAREN expr RPAREN
-*/
-func (parser *Parser) Expr() int {
-	result := parser.term()
+func (parser *Parser) Expr() AST {
+	/*
+	   Arithmetic expression parser / interpreter.
+	   expr   : term ((PLUS | MINUS) term)*
+	   term   : factor ((MUL | DIV) factor)*
+	   factor : INTEGER | LPAREN expr RPAREN | (PLUS | MINUS) factor
+	*/
+	node := parser.term()
 	for {
-		operand := parser.currentToken()
-		if operand.Type == EOF || operand.Type == RPAREN {
+		op := parser.currentToken()
+		if op.Type == EOF || op.Type == RPAREN {
 			break
 		}
 
-		if operand.Type == PLUS {
-			parser.eat(PLUS)
-			result += parser.term()
-		} else if operand.Type == MINUS {
-			parser.eat(MINUS)
-			result -= parser.term()
+		if op.Type == PLUS || op.Type == MINUS {
+			parser.eat(PLUS, MINUS)
+			node = NewBinOp(node, parser.term(), op)
 		} else {
 			panic("invalid syntax!")
 		}
 	}
-	return result
+	return node
 }
 
 /*
